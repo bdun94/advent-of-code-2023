@@ -57,7 +57,7 @@ fn create_digit_trie() -> Trie<u8> {
 }
 
 fn create_digit_map() -> HashMap<&'static str, char> {
-    [
+    HashMap::from([
         ("one", '1'),
         ("two", '2'),
         ("three", '3'),
@@ -67,7 +67,7 @@ fn create_digit_map() -> HashMap<&'static str, char> {
         ("seven", '7'),
         ("eight", '8'),
         ("nine", '9')
-    ].iter().cloned().collect()
+    ])
 }
 
 fn attempt_slice_translation(slice: &str, trie: &Trie<u8>, digit_map: &HashMap<&str, char>) -> Option<char> {
