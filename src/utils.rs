@@ -1,5 +1,5 @@
 
-pub mod file_utils {
+pub mod file {
     use std::fs::File;
     use std::io;
     use std::io::BufRead;
@@ -31,5 +31,21 @@ pub mod file_utils {
         }
         Ok(agg)
     }
+}
 
+pub mod output {
+    use std::fmt::Display;
+
+    pub fn print_solution<T:Display>(day: i32, part: i32, potential_result: Result<T, &str>)  {
+        match potential_result {
+            Ok(result) => {
+                let message = format!("Solution to day {} part {} is {}", day, part, result);
+                println!("{}", message);
+
+            }
+            Err(msg) => {
+                println!("{}", msg)
+            }
+        }
+    }
 }
