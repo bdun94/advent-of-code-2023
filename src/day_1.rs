@@ -72,7 +72,7 @@ fn create_digit_map() -> HashMap<&'static str, char> {
 
 fn attempt_slice_translation(slice: &str, trie: &Trie<u8>, digit_map: &HashMap<&str, char>) -> Option<char> {
     for i in 0..slice.len() {
-        let check_slice = &slice[0..i + 1];
+        let check_slice = &slice[0..=i];
 
         // Check if there's an immediate match, if so return it
         match digit_map.get(check_slice) {
