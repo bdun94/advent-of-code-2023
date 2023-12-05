@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use std::num::ParseIntError;
 use std::path::Path;
 use crate::utils::file::read_lines;
@@ -32,7 +33,9 @@ fn get_rows_to_scan(row: usize, matrix: &Vec<Vec<char>>) -> Vec<usize> {
     return vec![row - 1, row + 1]
 }
 
-fn valid_for_checking(index: usize, row: &Vec<char>) -> bool {
+
+
+fn space_is_numeric(index: usize, row: &Vec<char>) -> bool {
     return match row.get(index) {
         Some(c) => {
             c.is_numeric()
@@ -59,7 +62,7 @@ fn scan_adjacent_areas(row_position: usize, row_index: usize, current_row: &Vec<
     }
 
 
-    while valid_for_checking(ptr, current_row) {
+    while space_is_numeric(ptr, current_row) {
         for row_i in rows_to_scan {
             let char = matrix[*row_i][ptr];
             if char != '.' {
@@ -120,10 +123,12 @@ fn get_number_from_index(index: usize, row: &Vec<char>) -> Result<(i32, usize), 
     }
 }
 
+
+
 pub fn part_1_solution() {
     match load_file_into_matrix("inputs/day_3_input.txt") {
         Ok(matrix) => {
-            let nums: Vec<i32> = matrix.iter().enumerate().flat_map(|(row_index, row)| {
+            let nums: Vec<i32> = matrix.iter().enumerate().flat_map(|(row_index, _row)| {
                 process_line(row_index, &get_rows_to_scan(row_index, &matrix), &matrix)
             }).collect();
 
@@ -132,6 +137,132 @@ pub fn part_1_solution() {
         }
         Err(err) => {
             println!("{}", err);
+        }
+    }
+}
+
+fn get_number_from_middle(index: usize, row: &Vec<char>) -> Option<(i32, usize)> {
+    if let Some(row) = row.get(index) {
+        if !row.is_numeric() {
+            return None
+        }
+    }
+
+    let front_slice = &row[..index];
+    let back_slice = &row[index..];
+
+    let front_index = front_slice.iter().rev().position(|x| !x.is_numeric());
+    let back_index = back_slice.iter().position(|x| !x.is_numeric());
+
+    match (front_index, back_index) {
+        (Some(fi), Some(be)) => {
+            let num_string: String = row[index-fi..index + be].iter().collect();
+            match num_string.parse::<i32>() {
+                Ok(num) => {
+                    Some((num, index + be))
+                }
+                Err(_msg) => {
+                    None
+                }
+            }
+        }
+        (None, Some(be)) => {
+            let num_string: String = row[..index + be].iter().collect();
+            match num_string.parse::<i32>() {
+                Ok(num) => {
+                    Some((num, index + be))
+                }
+                Err(_msg) => {
+                    None
+                }
+            }
+        }
+        (Some(fi), None) => {
+            let num_string : String = row[index-fi..].iter().collect();
+            match num_string.parse::<i32>() {
+                Ok(num) => {
+                    Some((num, row.len()))
+                }
+                Err(_msg) => {
+                    None
+                }
+            }
+        }
+        (None, None) => {
+            None
+        }
+    }
+}
+
+fn check_gear(col_index: usize, row_index: usize, matrix: &Vec<Vec<char>>) -> Option<Vec<i32>> {
+    // Don't check if the current char is not a gear
+    if matrix[row_index][col_index] != '*' {
+        return None
+    }
+
+    let top_and_bottom = vec![row_index-1, row_index +1];
+    let mut nums: Vec<i32> = Vec::new();
+
+    // scan the top and bottom
+    for row in top_and_bottom {
+        let mut ptr = max(col_index - 1, 0);
+
+        while ptr <= min(col_index + 1, matrix[0].len() - 1) {
+            if space_is_numeric(ptr, &matrix[row]) {
+                if let Some((num, new_index)) = get_number_from_middle(ptr, &matrix[row]) {
+                    nums.push(num);
+                    ptr = new_index;
+                }
+                else {
+                    ptr += 1;
+                }
+            } else {
+                ptr += 1;
+            }
+        }
+    }
+
+    // scan the sides
+    if col_index > 0 {
+        if space_is_numeric(col_index - 1, &matrix[row_index]) {
+            if let Some((num, _new_index)) = get_number_from_middle(col_index - 1, &matrix[row_index]) {
+                nums.push(num);
+            }
+        }
+    }
+
+    if col_index < matrix[row_index].len() - 1 {
+        if space_is_numeric(col_index + 1, &matrix[row_index]) {
+            if let Some((num, _new_index)) = get_number_from_middle(col_index + 1, &matrix[row_index]) {
+                nums.push(num);
+            }
+        }
+    }
+
+    if nums.len() == 2 {
+        return Some(nums)
+    }
+    None
+}
+
+pub fn part_2_solution() {
+    let mut sum = 0;
+    match load_file_into_matrix("inputs/day_3_input.txt") {
+        Ok(matrix) => {
+            for (row_index, row)  in matrix.iter().enumerate().filter(|(row_index, _row)| *row_index != 0 || *row_index != matrix.len() - 1) {
+                for (col_index, col) in row.iter().enumerate() {
+                    if *col == '*' {
+                        if let Some(gears) = check_gear(col_index, row_index, &matrix) {
+                            sum += gears.iter().product::<i32>();
+                        }
+
+                    }
+                }
+            }
+            print_solution(3, 2, Ok(sum));
+        }
+        Err(msg) => {
+            println!("{}",msg);
         }
     }
 }
@@ -201,5 +332,39 @@ mod tests {
 
             assert_eq!(nums, *answers);
         }
+    }
+
+    #[test]
+    fn test_get_number_from_middle() {
+        let test_input_1: Vec<char> = "467..114..".chars().collect();
+        let test_input_2: Vec<char> = "617*......".chars().collect();
+        let test_input_3: Vec<char> = ".......755".chars().collect();
+
+        assert_eq!(get_number_from_middle(2, &test_input_1).unwrap(), (467, 3));
+        assert_eq!(get_number_from_middle(0, &test_input_1).unwrap(), (467, 3));
+        assert_eq!(get_number_from_middle(5, &test_input_1).unwrap(), (114, 8));
+        assert_eq!(get_number_from_middle(6, &test_input_1).unwrap(), (114, 8));
+        assert_eq!(get_number_from_middle(7, &test_input_1).unwrap(), (114, 8));
+        assert_eq!(get_number_from_middle(0, &test_input_2).unwrap(), (617, 3));
+        assert_eq!(get_number_from_middle(8, &test_input_3).unwrap(), (755, 10));
+        assert_eq!(get_number_from_middle(7, &test_input_3).unwrap(), (755, 10));
+        assert_eq!(get_number_from_middle(9, &test_input_3).unwrap(), (755, 10));
+
+    }
+
+    #[test]
+    fn test_check_gear() {
+        let matrix = create_test_matrix();
+        let gear_check = check_gear(3, 1, &matrix);
+        assert!(gear_check.is_some());
+        assert_eq!(gear_check.unwrap(), vec![467, 35]);
+
+        let gear_check_2 = check_gear(5, 8, &matrix);
+        assert!(gear_check_2.is_some());
+        assert_eq!(gear_check_2.unwrap(), vec![755, 598]);
+
+        let gear_check_3 = check_gear(3, 4, &matrix);
+        assert!(gear_check_3.is_none());
+
     }
 }
