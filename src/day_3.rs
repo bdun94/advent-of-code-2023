@@ -255,7 +255,6 @@ pub fn part_2_solution() {
                         if let Some(gears) = check_gear(col_index, row_index, &matrix) {
                             sum += gears.iter().product::<i32>();
                         }
-
                     }
                 }
             }
